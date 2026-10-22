@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#050816">
+<title>SPACE INVADERS — Arcade</title>
+<style>
+:root{color-scheme:dark;--cyan:#53f6ff;--pink:#ff4fd8;--lime:#c7ff6b}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#050816;color:#eaf6ff;font-family:system-ui,-apple-system,Segoe UI,sans-serif}body{display:grid;place-items:center;padding:18px;background:radial-gradient(ellipse at 50% 0%,#142044 0,#050816 60%);overflow-x:hidden}
+.shell{width:min(100%,900px)}header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap}.brand{font-size:clamp(20px,4vw,30px);font-weight:900;letter-spacing:.12em;color:var(--cyan);text-shadow:0 0 18px #53f6ff66}.brand span{color:var(--pink)}.pill{border:1px solid #33446b;border-radius:99px;padding:7px 12px;font-size:12px;color:#b7c8e9;letter-spacing:.12em}
+.hud{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}.stat{border:1px solid #263456;background:#0b1229d9;border-radius:12px;padding:9px 12px}.stat small{display:block;color:#8497bd;font-size:10px;letter-spacing:.16em}.stat strong{font-size:clamp(17px,3vw,23px);font-variant-numeric:tabular-nums}
+.stage{position:relative;border:1px solid #33456e;border-radius:16px;overflow:hidden;box-shadow:0 0 45px #53f6ff0d,0 18px 50px #0008;background:#050a1c}canvas{display:block;width:100%;height:auto;aspect-ratio:16/10;touch-action:none}
+.overlay{position:absolute;inset:0;display:grid;place-items:center;background:#030715bd;backdrop-filter:blur(4px);padding:20px;text-align:center}.overlay.hidden{display:none}.panel{max-width:440px}.panel h1{font-size:clamp(28px,7vw,52px);line-height:1;margin:0 0 14px;color:var(--cyan);text-shadow:0 0 25px #53f6ff50}.panel p{color:#c0cce4;line-height:1.55}.btn{border:0;border-radius:9px;background:var(--cyan);color:#06101c;font-weight:900;letter-spacing:.1em;padding:13px 23px;cursor:pointer;box-shadow:0 0 24px #53f6ff33}.btn:hover{filter:brightness(1.12)}.help{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 4px;color:#91a3c8;font-size:12px}.key{display:inline-block;border:1px solid #3a4a6b;border-radius:5px;padding:2px 6px;color:#eaf6ff;margin:0 2px}.mobile{display:none;gap:10px;justify-content:center;margin-top:8px;user-select:none}.mobile button{width:31%;height:48px;border:1px solid #30446a;border-radius:10px;background:#0d1732;color:var(--cyan);font-size:22px;font-weight:800;touch-action:none}.mobile button:active{background:#1c2d50}
+footer{text-align:center;color:#536487;font-size:11px;margin-top:8px;letter-spacing:.06em}
+@media(max-width:600px){body{padding:10px}.mobile{display:flex}.help{font-size:11px}.pill{font-size:10px}}
+</style>
+</head>
+<body><main class="shell">
+<header><div class="brand">SPACE <span>INVADERS</span></div><div class="pill">ARCADE EDITION · 01</div></header>
+<section class="hud" aria-label="Statistiche di gioco"><div class="stat"><small>PUNTEGGIO</small><strong id="score">000000</strong></div><div class="stat"><small>RECORD</small><strong id="best">000000</strong></div><div class="stat"><small>VITE</small><strong id="lives">♥ ♥ ♥</strong></div></section>
+<div class="stage"><canvas id="game" width="800" height="500" aria-label="Campo di gioco Space Invaders"></canvas><div class="overlay" id="overlay"><div class="panel"><h1 id="headline">INVASIONE<br>IN ARRIVO</h1><p id="message">La flotta aliena si avvicina. Preparati a difendere la Terra.</p><button class="btn" id="start">INIZIA A GIOCARE</button><p style="font-size:12px">Muoviti con ← → oppure A / D · Spara con SPAZIO</p></div></div></div>
+<div class="mobile"><button id="left" aria-label="Muovi a sinistra">◀</button><button id="fire" aria-label="Spara">✦ SPARA</button><button id="right" aria-label="Muovi a destra">▶</button></div>
+<div class="help"><span><span class="key">←</span><span class="key">→</span> Muovi <span class="key">SPAZIO</span> Spara</span><span>Elimina tutti gli alieni. Non farli atterrare!</span></div>
+<footer>UN PICCOLO OMAGGIO ALL'ARCADE CLASSICA · NESSUN DOWNLOAD NECESSARIO</footer>
+</main>
+<script>
+(()=> {
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
+const $=id=>document.getElementById(id);
+const W=800,H=500;
+let state='ready',score=0,lives=3,level=1,player,aliens,shots,enemyShots,particles,keys={},lastShot=0,lastEnemyShot=0,formationDir=1,enemySpeed=.42,stars=[],best=0,lastTime=0,raf=0;
+try{best=Number(localStorage.getItem('spaceInvadersBest')||0)}catch(e){}
+$('best').textContent=fmt(best);
+for(let i=0;i<100;i++)stars.push({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.5+.3,a:Math.random()*.65+.15});
+function fmt(n){return String(n).padStart(6,'0')}
+function reset(){score=0;lives=3;level=1;enemySpeed=.42;player={x:W/2-20,y:H-56,w:40,h:22,speed:5.4,invuln:0};shots=[];enemyShots=[];particles=[];formationDir=1;makeAliens();updateHud()}
+function makeAliens(){aliens=[];const cols=10,rows=4,aw=30,ah=22,gx=48,gy=42,left=(W-(cols*aw+(cols-1)*gx))/2;for(let r=0;r<rows;r++)for(let c=0;c<cols;c++)aliens.push({x:left+c*(aw+gx),y:66+r*gy,w:aw,h:ah,row:r,alive:true,phase:Math.random()*6})}
+function updateHud(){$('score').textContent=fmt(score);$('best').textContent=fmt(best);$('lives').textContent='♥ '.repeat(lives).trim()||'—'}
+function showOverlay(title,msg,button){$('headline').innerHTML=title;$('message').textContent=msg;$('start').textContent=button;$('overlay').classList.remove('hidden')}
+function hideOverlay(){$('overlay').classList.add('hidden')}
+function start(){if(state==='playing')return;reset();state='playing';hideOverlay();lastTime=performance.now();cancelAnimationFrame(raf);raf=requestAnimationFrame(loop)}
+function end(win){state=win?'won':'over';showOverlay(win?'SETTORE<br>PULITO!':'GAME OVER',win?'Hai respinto la flotta! Preparati al prossimo attacco.':'La Terra ha bisogno di te. Riprova e supera il tuo record.',win?'GIOCA ANCORA':'RIPROVA')}
+$('start').addEventListener('click',start);
+function shoot(){if(state!=='playing')return;const now=performance.now();if(now-lastShot<260)return;lastShot=now;shots.push({x:player.x+player.w/2-2,y:player.y-8,w:4,h:13,speed:7.5});}
+window.addEventListener('keydown',e=>{if(['ArrowLeft','ArrowRight',' ','ArrowUp'].includes(e.key))e.preventDefault();keys[e.key.toLowerCase()]=true;if(e.key===' '){if(state!=='playing')start();else shoot()}if((e.key==='Enter'||e.key==='Escape')&&state!=='playing')start()});
+window.addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
+function bindHold(id,key){const el=$(id);el.addEventListener('pointerdown',e=>{e.preventDefault();keys[key]=true;try{el.setPointerCapture(e.pointerId)}catch(_){}});for(const ev of ['pointerup','pointercancel','lostpointercapture'])el.addEventListener(ev,()=>keys[key]=false)}
+bindHold('left','arrowleft');bindHold('right','arrowright');
+$('fire').addEventListener('pointerdown',e=>{e.preventDefault();shoot()});
+function hit(a,b){return a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y}
+function burst(x,y,color,n=8){for(let i=0;i<n;i++){const a=Math.random()*Math.PI*2,s=Math.random()*2.6+.5;particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:30+Math.random()*20,color})}}
+function update(dt,now){
+if(keys.arrowleft||keys.a)player.x-=player.speed*dt/16.67;if(keys.arrowright||keys.d)player.x+=player.speed*dt/16.67;player.x=Math.max(8,Math.min(W-player.w-8,player.x));
+if((keys[' ']||keys.w||keys.arrowup)&&now-lastShot>280)shoot();
+for(const s of shots)s.y-=s.speed*dt/16.67;shots=shots.filter(s=>s.y>-20);
+let alive=aliens.filter(a=>a.alive),minX=Infinity,maxX=-Infinity,lowest=0;
+for(const a of alive){a.x+=formationDir*enemySpeed*dt;a.phase+=dt*.004;minX=Math.min(minX,a.x);maxX=Math.max(maxX,a.x+a.w);lowest=Math.max(lowest,a.y+a.h)}
+if(maxX>W-12||minX<12){formationDir*=-1;for(const a of alive)a.y+=14}
+for(const a of alive){for(let i=shots.length-1;i>=0;i--){if(hit(a,shots[i])){a.alive=false;shots.splice(i,1);score+=(4-a.row)*10;burst(a.x+a.w/2,a.y+a.h/2,['#53f6ff','#ff4fd8','#c7ff6b','#ffbd59'][a.row],10);break}}}
+if(now-lastEnemyShot>Math.max(360,1200-level*100)){lastEnemyShot=now;const shooters=[];for(let c=0;c<10;c++){const column=alive.filter(a=>Math.floor(a.x/78)===c);if(column.length)shooters.push(column.reduce((a,b)=>a.y>b.y?a:b))}if(shooters.length){const a=shooters[Math.floor(Math.random()*shooters.length)];enemyShots.push({x:a.x+a.w/2-2,y:a.y+a.h,w:4,h:12,speed:2.6+level*.25})}}
+for(const s of enemyShots){s.y+=s.speed*dt/16.67;if(player.invuln<=0&&hit(s,player)){s.y=H+30;lives--;player.invuln=1150;burst(player.x+player.w/2,player.y,'#ff4fd8',18);if(lives<=0){updateHud();end(false);return}}}
+enemyShots=enemyShots.filter(s=>s.y<H+20);if(player.invuln>0)player.invuln-=dt;
+for(const p of particles){p.x+=p.vx*dt/16.67;p.y+=p.vy*dt/16.67;p.life-=dt/16.67}particles=particles.filter(p=>p.life>0);
+if(alive.some(a=>a.y+a.h>=player.y-5)){end(false);return}
+if(!alive.length){level++;enemySpeed+=.15;makeAliens();for(const a of aliens)a.y-=Math.min(18,level*2);enemyShots=[];player.invuln=700}
+if(score>best){best=score;try{localStorage.setItem('spaceInvadersBest',best)}catch(e){}}
+updateHud()
+}
+function drawAlien(a){const x=a.x,y=a.y,w=a.w,h=a.h;ctx.save();ctx.translate(x,y);ctx.fillStyle=['#c7ff6b','#53f6ff','#ff4fd8','#ffbd59'][a.row];ctx.shadowColor=ctx.fillStyle;ctx.shadowBlur=10;ctx.fillRect(7,0,w-14,4);ctx.fillRect(3,4,w-6,5);ctx.fillRect(0,9,w,7);ctx.fillRect(4,16,6,4);ctx.fillRect(w-10,16,6,4);ctx.clearRect(8,7,4,4);ctx.clearRect(w-12,7,4,4);ctx.fillStyle='#06101c';ctx.fillRect(8,7,4,4);ctx.fillRect(w-12,7,4,4);ctx.restore()}
+function drawPlayer(){const x=player.x,y=player.y;ctx.save();if(player.invuln>0&&Math.floor(player.invuln/90)%2===0)ctx.globalAlpha=.35;ctx.fillStyle='#53f6ff';ctx.shadowColor='#53f6ff';ctx.shadowBlur=16;ctx.fillRect(x+15,y,10,7);ctx.fillRect(x+9,y+7,22,5);ctx.fillRect(x+3,y+12,34,7);ctx.fillRect(x,y+18,40,4);ctx.restore()}
+function render(now){ctx.clearRect(0,0,W,H);const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#070d23');g.addColorStop(1,'#050816');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+for(const s of stars){ctx.globalAlpha=s.a*(.7+.3*Math.sin(now*.001+s.y));ctx.fillStyle='#c8e4ff';ctx.fillRect(s.x,s.y,s.r,s.r)}ctx.globalAlpha=1;
+ctx.strokeStyle='#142447';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(0,H-29);ctx.lineTo(W,H-29);ctx.stroke();
+for(const a of aliens)if(a.alive)drawAlien(a);
+ctx.save();ctx.shadowColor='#53f6ff';ctx.shadowBlur=12;ctx.fillStyle='#c7ff6b';for(const s of shots)ctx.fillRect(s.x,s.y,s.w,s.h);ctx.restore();
+ctx.save();ctx.shadowColor='#ff4fd8';ctx.shadowBlur=10;ctx.fillStyle='#ff4fd8';for(const s of enemyShots)ctx.fillRect(s.x,s.y,s.w,s.h);ctx.restore();
+for(const p of particles){ctx.globalAlpha=Math.max(0,p.life/40);ctx.fillStyle=p.color;ctx.fillRect(p.x,p.y,3,3)}ctx.globalAlpha=1;
+if(player)drawPlayer();
+ctx.fillStyle='#40547d';ctx.font='11px monospace';ctx.fillText('WAVE '+String(level).padStart(2,'0'),14,20);
+}
+function loop(now){if(state!=='playing')return;const dt=Math.min(32,now-lastTime||16);lastTime=now;update(dt,now);render(now);if(state==='playing')raf=requestAnimationFrame(loop);else render(now)}
+render(0);
+})();
+</script>
+</body></html>

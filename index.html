@@ -29,12 +29,12 @@ footer{text-align:center;color:#536487;font-size:11px;margin-top:8px;letter-spac
 const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
 const $=id=>document.getElementById(id);
 const W=800,H=500;
-let state='ready',score=0,lives=3,level=1,player,aliens,shots,enemyShots,particles,keys={},lastShot=0,lastEnemyShot=0,formationDir=1,enemySpeed=.42,stars=[],best=0,lastTime=0,raf=0;
+let state='ready',score=0,lives=3,level=1,player,aliens,shots,enemyShots,particles,keys={},lastShot=0,lastEnemyShot=0,formationDir=1,enemySpeed=.065,stars=[],best=0,lastTime=0,raf=0;
 try{best=Number(localStorage.getItem('spaceInvadersBest')||0)}catch(e){}
 $('best').textContent=fmt(best);
 for(let i=0;i<100;i++)stars.push({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.5+.3,a:Math.random()*.65+.15});
 function fmt(n){return String(n).padStart(6,'0')}
-function reset(){score=0;lives=3;level=1;enemySpeed=.42;player={x:W/2-20,y:H-56,w:40,h:22,speed:5.4,invuln:0};shots=[];enemyShots=[];particles=[];formationDir=1;makeAliens();updateHud()}
+function reset(){score=0;lives=3;level=1;enemySpeed=.42;player={x:W/2-20,y:H-56,w:40,h:22,speed:4.2,invuln:0};shots=[];enemyShots=[];particles=[];formationDir=1;makeAliens();updateHud()}
 function makeAliens(){aliens=[];const cols=10,rows=4,aw=30,ah=22,gx=48,gy=42,left=(W-(cols*aw+(cols-1)*gx))/2;for(let r=0;r<rows;r++)for(let c=0;c<cols;c++)aliens.push({x:left+c*(aw+gx),y:66+r*gy,w:aw,h:ah,row:r,alive:true,phase:Math.random()*6})}
 function updateHud(){$('score').textContent=fmt(score);$('best').textContent=fmt(best);$('lives').textContent='♥ '.repeat(lives).trim()||'—'}
 function showOverlay(title,msg,button){$('headline').innerHTML=title;$('message').textContent=msg;$('start').textContent=button;$('overlay').classList.remove('hidden')}
@@ -63,7 +63,7 @@ for(const s of enemyShots){s.y+=s.speed*dt/16.67;if(player.invuln<=0&&hit(s,play
 enemyShots=enemyShots.filter(s=>s.y<H+20);if(player.invuln>0)player.invuln-=dt;
 for(const p of particles){p.x+=p.vx*dt/16.67;p.y+=p.vy*dt/16.67;p.life-=dt/16.67}particles=particles.filter(p=>p.life>0);
 if(alive.some(a=>a.y+a.h>=player.y-5)){end(false);return}
-if(!alive.length){level++;enemySpeed+=.15;makeAliens();for(const a of aliens)a.y-=Math.min(18,level*2);enemyShots=[];player.invuln=700}
+if(!alive.length){level++;enemySpeed+=.012;makeAliens();for(const a of aliens)a.y-=Math.min(18,level*2);enemyShots=[];player.invuln=700}
 if(score>best){best=score;try{localStorage.setItem('spaceInvadersBest',best)}catch(e){}}
 updateHud()
 }

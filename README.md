@@ -14,3 +14,6 @@ Il workflow GitHub Actions in `.github/workflows/pages.yml` pubblica automaticam
 Se la pubblicazione non parte automaticamente, apri **Settings → Pages** nel repository e seleziona **GitHub Actions** come build and deployment source.
 
 URL atteso: https://andypiro1965.github.io/space-invaders/
+
+
+Ultimo aggiornamento: attivazione GitHub Pages.
